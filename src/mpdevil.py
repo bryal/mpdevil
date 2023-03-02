@@ -18,7 +18,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import gi
-gi.require_version("Gtk", "3.0")
+gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gio, Gdk, GdkPixbuf, Pango, GObject, GLib
 from mpd import MPDClient, CommandError, ConnectionError
 from html.parser import HTMLParser
@@ -44,10 +44,10 @@ locale.bindtextdomain("mpdevil", "@LOCALE_DIR@")
 locale.textdomain("mpdevil")
 bindtextdomain("mpdevil", localedir="@LOCALE_DIR@")
 textdomain("mpdevil")
-Gio.Resource._register(Gio.resource_load(os.path.join("@RESOURCES_DIR@", "mpdevil.gresource")))
+Gio.Resource._register(Gio.resource_load(os.path.join("/home/jojo/.local/share/mpdevil/", "mpdevil.gresource")))
 
 FALLBACK_REGEX=r"^\.?(album|cover|folder|front).*\.(gif|jpeg|jpg|png)$"
-FALLBACK_COVER=Gtk.IconTheme.get_default().lookup_icon("media-optical", 128, Gtk.IconLookupFlags.FORCE_SVG).get_filename()
+FALLBACK_COVER=None
 FALLBACK_SOCKET=os.path.join(GLib.get_user_runtime_dir(), "mpd/socket")
 FALLBACK_MUSIC_DIRECTORY=GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_MUSIC)
 
@@ -1305,14 +1305,15 @@ class SongPopover(Gtk.Popover):
 
 		# buttons
 		hbox=Gtk.Box(spacing=6)
-		self._open_button=Gtk.Button(image=Gtk.Image.new_from_icon_name("folder-open-symbolic", Gtk.IconSize.BUTTON),
-			tooltip_text=_("Show in file manager"))
+		self._open_button=Gtk.Button.new_from_icon_name("folder-open-symbolic")
+		self._open_button.set_tooltip_text(_("Show in file manager"))
 		hbox.pack_end(self._open_button, False, False, 0)
 		if show_buttons:
-			button_box=Gtk.ButtonBox(layout_style=Gtk.ButtonBoxStyle.EXPAND)
+			button_box=Gtk.Box(layout_style=Gtk.ButtonBoxStyle.EXPAND)
 			data=((_("Append"), "list-add-symbolic", "append"), (_("Play"), "media-playback-start-symbolic", "play"))
 			for tooltip, icon, mode in data:
-				button=Gtk.Button(tooltip_text=tooltip, image=Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON))
+				button=Gtk.Button.new_from_icon_name(icon)
+				button.set_tooltip_text(tooltip)
 				button.connect("clicked", self._on_button_clicked, mode)
 				button_box.pack_start(button, True, True, 0)
 			hbox.pack_end(button_box, False, False, 0)
@@ -1413,12 +1414,12 @@ class SongsList(TreeView):
 		self._selection=self.get_selection()
 
 		# buttons
-		self.buttons=Gtk.ButtonBox(layout_style=Gtk.ButtonBoxStyle.EXPAND)
+		self.buttons=Gtk.Box(layout_style=Gtk.ButtonBoxStyle.EXPAND)
 		data=((_("Add all titles to playlist"), "list-add-symbolic", "append"),
 			(_("Directly play all titles"), "media-playback-start-symbolic", "play")
 		)
 		for tooltip, icon, mode in data:
-			button=Gtk.Button(image=Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON))
+			button=Gtk.Button(image=Gtk.Image.new_from_icon_name(icon))
 			button.set_tooltip_text(tooltip)
 			button.connect("clicked", self._on_button_clicked, mode)
 			self.buttons.pack_start(button, True, True, 0)
@@ -1538,13 +1539,14 @@ class ArtistPopover(Gtk.Popover):
 		self._genre=None
 
 		# buttons
-		vbox=Gtk.ButtonBox(orientation=Gtk.Orientation.VERTICAL, margin=10)
+		vbox=Gtk.Box(orientation=Gtk.Orientation.VERTICAL, margin_top=10, margin_bottom=10, margin_start=10, margin_end=10)
 		data=((_("Append"), "list-add-symbolic", "append"), (_("Play"), "media-playback-start-symbolic", "play"))
 		for label, icon, mode in data:
-			button=Gtk.ModelButton(label=label, image=Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON))
-			button.get_child().set_property("xalign", 0)
+			button=Gtk.Button.new_from_icon_name(icon)
+			button.set_tooltip_text(label)
+			# button.get_child().set_property("xalign", 0)
 			button.connect("clicked", self._on_button_clicked, mode)
-			vbox.pack_start(button, True, True, 0)
+			vbox.prepend(button)
 
 		self.add(vbox)
 		vbox.show_all()
@@ -2454,7 +2456,7 @@ class PlaylistView(TreeView):
 class PlaylistWindow(Gtk.Overlay):
 	def __init__(self, client, settings):
 		super().__init__()
-		self._back_button_icon=Gtk.Image.new_from_icon_name("go-down-symbolic", Gtk.IconSize.BUTTON)
+		self._back_button_icon=Gtk.Image.new_from_icon_name("go-down-symbolic")
 		self._back_to_current_song_button=Gtk.Button(image=self._back_button_icon, tooltip_text=_("Scroll to current song"), can_focus=False)
 		self._back_to_current_song_button.get_style_context().add_class("osd")
 		self._back_button_revealer=Gtk.Revealer(
@@ -2600,7 +2602,7 @@ class LyricsWindow(Gtk.ScrolledWindow):
 		self._displayed_song_file=None
 		self._text_buffer.set_text("", -1)
 
-class CoverEventBox(Gtk.EventBox):
+class CoverEventBox(Gtk.Widget):
 	def __init__(self, client, settings):
 		super().__init__()
 		self._client=client
@@ -2705,7 +2707,7 @@ class CoverLyricsWindow(Gtk.Overlay):
 
 		# lyrics button
 		self.lyrics_button=Gtk.ToggleButton(
-			image=Gtk.Image.new_from_icon_name("org.mpdevil.mpdevil-lyrics-symbolic", Gtk.IconSize.BUTTON), tooltip_text=_("Lyrics"),
+			image=Gtk.Image.new_from_icon_name("org.mpdevil.mpdevil-lyrics-symbolic"), tooltip_text=_("Lyrics"),
 			can_focus=False
 		)
 		self.lyrics_button.get_style_context().add_class("osd")
@@ -2752,7 +2754,7 @@ class CoverLyricsWindow(Gtk.Overlay):
 # action bar widgets #
 ######################
 
-class PlaybackControl(Gtk.ButtonBox):
+class PlaybackControl(Gtk.Box):
 	def __init__(self, client, settings):
 		super().__init__(layout_style=Gtk.ButtonBoxStyle.EXPAND)
 		self._client=client
@@ -2954,7 +2956,7 @@ class AudioFormat(Gtk.Box):
 	def _on_connected(self, *args):
 		self.set_sensitive(True)
 
-class PlaybackOptions(Gtk.ButtonBox):
+class PlaybackOptions(Gtk.Box):
 	def __init__(self, client, settings):
 		super().__init__(layout_style=Gtk.ButtonBoxStyle.EXPAND, homogeneous=False)
 		self._client=client
@@ -3073,7 +3075,7 @@ class VolumeButton(Gtk.VolumeButton):
 		for button in self._output_box.get_children():
 			self._output_box.remove(button)
 		for output in self._client.outputs():
-			button=Gtk.ModelButton(label=f"{output['outputname']} ({output['plugin']})", role=Gtk.ButtonRole.CHECK, visible=True)
+			button=Gtk.Button(label=f"{output['outputname']} ({output['plugin']})", role=Gtk.ButtonRole.CHECK, visible=True)
 			button.get_child().set_property("xalign", 0)
 			if output["outputenabled"] == "1":
 				button.set_property("active", True)
@@ -3287,7 +3289,7 @@ class MainWindow(Gtk.ApplicationWindow):
 		connection_notify=ConnectionNotify(self._client, self._settings)
 		def icon(name):
 			if self._use_csd:
-				return Gtk.Image.new_from_icon_name(name, Gtk.IconSize.BUTTON)
+				return Gtk.Image.new_from_icon_name(name)
 			else:
 				return AutoSizedIcon(name, "icon-size", self._settings)
 		self._search_button=Gtk.ToggleButton(
@@ -3322,7 +3324,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
 		# menu button / popover
 		if self._use_csd:
-			menu_icon=Gtk.Image.new_from_icon_name("open-menu-symbolic", Gtk.IconSize.BUTTON)
+			menu_icon=Gtk.Image.new_from_icon_name("open-menu-symbolic")
 		else:
 			menu_icon=AutoSizedIcon("open-menu-symbolic", "icon-size", self._settings)
 		self._menu_button=Gtk.MenuButton(image=menu_icon, tooltip_text=_("Menu"), can_focus=False)
@@ -3552,10 +3554,12 @@ class mpdevil(Gtk.Application):
 		self.add_main_option("debug", ord("d"), GLib.OptionFlags.NONE, GLib.OptionArg.NONE, _("Debug mode"), None)
 
 	def do_startup(self):
+		global FALLBACK_COVER
 		Gtk.Application.do_startup(self)
 		self._settings=Settings()
 		self._client=Client(self._settings)
 		self._window=MainWindow(self._client, self._settings, application=self)
+		FALLBACK_COVER=Gtk.IconTheme.get_for_display(self._window.get_display()).lookup_icon("media-optical", 128, Gtk.IconLookupFlags.FORCE_SVG).get_filename()
 		self._window.connect("delete-event", self._on_quit)
 		self._window.insert_action_group("mpd", MPDActionGroup(self._client))
 		self._window.open()
@@ -3617,7 +3621,10 @@ class mpdevil(Gtk.Application):
 	def _on_quit(self, *args):
 		self.quit()
 
-if __name__ == "__main__":
+def main():
 	app=mpdevil()
 	signal.signal(signal.SIGINT, signal.SIG_DFL)  # allow using ctrl-c to terminate
 	app.run(sys.argv)
+
+if __name__ == "__main__":
+	main()
